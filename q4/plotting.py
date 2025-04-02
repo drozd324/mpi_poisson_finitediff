@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-grid = np.loadtxt("grid.txt")
+grid = np.loadtxt("./grids/grid.txt")
 
 #x_labels = ['A', 'B', 'C', 'D', 'E']
 #y_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May']
@@ -23,7 +23,7 @@ plt.savefig("./plots/heatmap_plot.png", dpi=300)
 
 
 # analytic soution
-analytic_grid = np.loadtxt("analytic_grid.txt")
+analytic_grid = np.loadtxt("./grids/analytic_grid.txt")
 
 plt.clf()
 

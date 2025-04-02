@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	int nx, ny;
 	int myid, nprocs;
 	/* MPI_Status status; */
-	int nbrleft, nbrright, s, e, it;
+	int nbrleft, nbrright, nbrabove, nbrbelow, s, e, it;
 	double glob_diff;
 	double ldiff;
 	double t1, t2;
@@ -77,17 +77,16 @@ int main(int argc, char **argv)
 
 	init_full_grids(a, b, f);
 	
-	//////////////////////////////////////// q1 ///////////////////////////////////////////////////////////
-	int ndims = 1;
-	int dims[1] = {nprocs};
-        int periods[1] = {0};
+	//////////////////////////////////////// q4 ///////////////////////////////////////////////////////////
+	int ndims = 2;
+	int dims[2] = {(int)round(sqrt(procs)), (int)round(sqrt(procs))};
+	int periods[1] = {0};
 	int reorder = 0;
 	MPI_Comm cartcomm;
-	//int nbrleft, nbrright;
 
 	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, reorder, &cartcomm);
 	MPI_Cart_shift(cartcomm, 0, 1, &nbrleft, &nbrright);
-	//////////////////////////////////////// q1 ///////////////////////////////////////////////////////////
+	//////////////////////////////////////// q4 ///////////////////////////////////////////////////////////
 	  
 	//maybe swap this out?
 	if( myid == 0 ){
@@ -161,7 +160,7 @@ int main(int argc, char **argv)
 	double whole_u[maxn][maxn];
 	GatherGrid(whole_u, u, s, e, nx, MPI_COMM_WORLD);
 	if (myid == 0){
-		write_grid(whole_u, "analytic_grid.txt", nx);
+		write_grid(whole_u, "./grids/analytic_grid.txt", nx);
 	}
 	//print_in_order(u, MPI_COMM_WORLD);
 	double local_mse = compute_mse(a, u, nx, myid, nprocs);
@@ -181,7 +180,7 @@ int main(int argc, char **argv)
 	if (myid == 0){
 		printf("Priting whole grid on rank = 0\n");
 		print_full_grid(whole_grid);
-		write_grid(whole_grid, "grid.txt", nx);
+		write_grid(whole_grid, "./grids/grid.txt", nx);
 	}
 
 	MPI_Finalize();
