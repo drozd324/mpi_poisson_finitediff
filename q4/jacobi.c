@@ -54,7 +54,6 @@ void sweep2d(double a[][maxn], double f[][maxn], int nx,
 
 	for(int i=s_x; i<=e_x; i++){
 		for(int j=s_y; j<=e_y; j++){
-	//	for(int j=1; j<nx+1; j++){
 			b[i][j] = 0.25 * ( a[i-1][j] + a[i+1][j] + a[i][j+1] + a[i][j-1]  - h*h*f[i][j] );
 		}
 	}
@@ -106,8 +105,8 @@ void exchangi1(double x[][maxn], int nx, int s, int e, MPI_Comm comm,
   MPI_Request reqs[4];
 
   MPI_Irecv(&x[s-1][1], nx, MPI_DOUBLE, nbrleft, 0, comm, &reqs[0]);
-  MPI_Irecv(&x[e+1][1], nx, MPI_DOUBLE, nbrright, 0, comm, &reqs[1]);
   MPI_Isend(&x[e][1],   nx, MPI_DOUBLE, nbrright, 0, comm, &reqs[2]);
+  MPI_Irecv(&x[e+1][1], nx, MPI_DOUBLE, nbrright, 0, comm, &reqs[1]);
   MPI_Isend(&x[s][1],   nx, MPI_DOUBLE, nbrleft, 0, comm, &reqs[3]);
   /* not doing anything useful here */
 
@@ -116,25 +115,51 @@ void exchangi1(double x[][maxn], int nx, int s, int e, MPI_Comm comm,
 
 void exchangi2(double x[][maxn], int nx, 
 		int s_x, int e_x, int s_y, int e_y ,
-		int nbrleft, int nbrright, 
-		int nbrabove, int nbrbelow, 
+		int nbrleft, int nbrright, int nbrup, int nbrdown, 
 		MPI_Comm comm){
 	MPI_Request reqs[8];
+	MPI_Datatype vect;
 	
-	//x
-	MPI_Irecv(&x[s_x-1][1], nx, MPI_DOUBLE, nbrleft , 0, comm, &reqs[0]);
-	MPI_Irecv(&x[e_x+1][1], nx, MPI_DOUBLE, nbrright, 0, comm, &reqs[1]);
-	MPI_Isend(&x[e_x][1]  , nx, MPI_DOUBLE, nbrright, 0, comm, &reqs[2]);
-	MPI_Isend(&x[s_x][1]  , nx, MPI_DOUBLE, nbrleft , 0, comm, &reqs[3]);
-
-	//y
-	MPI_Irecv(&x[s_y-1][1], nx, MPI_DOUBLE, nbrbelow, 0, comm, &reqs[4]);
-	MPI_Irecv(&x[e_y+1][1], nx, MPI_DOUBLE, nbrabove, 0, comm, &reqs[5]);
-	MPI_Isend(&x[e_y][1]  , nx, MPI_DOUBLE, nbrabove, 0, comm, &reqs[6]);
-	MPI_Isend(&x[s_y][1]  , nx, MPI_DOUBLE, nbrbelow, 0, comm, &reqs[7]);
+	int row_lenght = e_x - s_x + 1;
+	int col_lenght = e_y - s_y + 1;
+	
+//	//x
+//	MPI_Irecv(&x[s_x-1][s_y], row_lenght, MPI_DOUBLE, nbrleft , 0, comm, &reqs[0]);
+//	MPI_Isend(&x[e_x][s_y]  , row_lenght, MPI_DOUBLE, nbrright, 0, comm, &reqs[2]);
+//	MPI_Irecv(&x[s_x+1][s_y], row_lenght, MPI_DOUBLE, nbrright, 1, comm, &reqs[1]);
+//	MPI_Isend(&x[e_x][s_y]  , row_lenght, MPI_DOUBLE, nbrleft , 1, comm, &reqs[3]);
+//
+//	//y
+//	MPI_Datatype vect;
+//	//MPI_Type_vector(nx+2, 1, nx+2, MPI_DOUBLE, &vect);
+//	MPI_Type_vector(row_lenght, 1, nx+2, MPI_DOUBLE, &vect);
+//	MPI_Type_commit(&vect);
+//
+//	MPI_Irecv(&x[s_x][s_y-1], col_lenght, vect, nbrdown, 2, comm, &reqs[4]);
+//	MPI_Isend(&x[e_x][e_y]  , col_lenght, vect, nbrup  , 2, comm, &reqs[6]);
+//	MPI_Irecv(&x[s_x][e_y+1], col_lenght, vect, nbrup  , 3, comm, &reqs[5]);
+//	MPI_Isend(&x[e_x][s_y]  , col_lenght, vect, nbrdown, 3, comm, &reqs[7]);
 	/* not doing anything useful here */
 
+
+
+	// x-direction
+	MPI_Irecv(&x[s_x-1][s_y], row_lenght, MPI_DOUBLE, nbrleft , 0, comm, &reqs[0]);
+	MPI_Isend(&x[e_x][s_y],   row_lenght, MPI_DOUBLE, nbrright, 0, comm, &reqs[2]);
+	MPI_Irecv(&x[s_x+1][s_y], row_lenght, MPI_DOUBLE, nbrright, 0, comm, &reqs[1]);
+	MPI_Isend(&x[s_x][s_y],   row_lenght, MPI_DOUBLE, nbrleft , 0, comm, &reqs[3]);
+	
+	// y-direction
+	MPI_Type_vector(row_lenght, 1, nx+2, MPI_DOUBLE, &vect);
+	MPI_Type_commit(&vect);
+
+	MPI_Irecv(&x[s_x][s_y-1], 1, vect, nbrdown, 0, comm, &reqs[4]);
+	MPI_Isend(&x[s_x][e_y],   1, vect, nbrup,   0, comm, &reqs[6]);
+	MPI_Irecv(&x[s_x][e_y+1], 1, vect, nbrup,   0, comm, &reqs[5]);
+	MPI_Isend(&x[s_x][s_y],   1, vect, nbrdown, 0, comm, &reqs[7]);
+
 	MPI_Waitall(8, reqs, MPI_STATUSES_IGNORE);
+	MPI_Type_free(&vect);
 }
 
 //void nbxchange_and_sweep(double u[][maxn], double f[][maxn], int nx, int ny,
@@ -236,4 +261,22 @@ double griddiff(double a[][maxn], double b[][maxn], int nx, int s, int e)
 
   return sum;
 
+}
+
+
+double griddiff_2d(double a[][maxn], double b[][maxn], int s_x, int e_x, int s_y, int e_y){
+  double sum;
+  double tmp;
+  int i, j;
+
+  sum = 0.0;
+
+  for(i=s_x; i<=e_x; i++){
+    for(j=s_y; j<=e_y; j++){
+      tmp = (a[i][j] - b[i][j]);
+      sum = sum + tmp*tmp;
+    }
+  }
+
+  return sum;
 }

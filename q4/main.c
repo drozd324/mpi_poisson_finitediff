@@ -29,8 +29,14 @@ double compute_mse(double a[][maxn], double b[][maxn], int s, int e, int nx);
 
 //q3
 void write_grid(double grid[][maxn], char* file_name, int nx);
-void GatherGrid(double grid[][maxn], double proc_grid[][maxn], int s, int e, int nx, MPI_Comm comm);
+void GatherGrid(double grid[][maxn], double proc_grid[][maxn], int nx, MPI_Comm comm);
 void decomp1d(int n, int p, int myid, int* s, int* e);
+
+//q4
+void GatherGrid2d(double grid[][maxn], double proc_grid[][maxn], int nx, int ny, int* dims, int* coords, MPI_Comm comm);
+void init_basic_bv_2d(double a[][maxn], double b[][maxn], double f[][maxn], int nx, int ny, int s_x, int e_x, int s_y, int e_y);
+void analytic_sol_matrix_2d(double u[][maxn], int nx, int ny, int* coords, int* dims);
+double compute_mse_2d(double a[][maxn], double b[][maxn], int nx, int ny, int* coords, int* dims);
 
 int main(int argc, char **argv)
 {
@@ -39,7 +45,7 @@ int main(int argc, char **argv)
 	int nx, ny;
 	int myid, nprocs;
 	/* MPI_Status status; */
-	int nbrleft, nbrright, nbrabove, nbrbelow, s, e, it;
+	int nbrleft, nbrright, nbrup, nbrdown, s_x, e_x, s_y, e_y, it;
 	double glob_diff;
 	double ldiff;
 	double t1, t2;
@@ -79,30 +85,35 @@ int main(int argc, char **argv)
 	
 	//////////////////////////////////////// q4 ///////////////////////////////////////////////////////////
 	int ndims = 2;
-	int dims[2] = {(int)round(sqrt(procs)), (int)round(sqrt(procs))};
-	int periods[1] = {0};
+        int dims[2] = {0, 0};
+	int periods[2] = {0, 0};
 	int reorder = 0;
 	MPI_Comm cartcomm;
+	int coords[2];
 
+	MPI_Dims_create(nprocs, ndims, dims);
 	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, reorder, &cartcomm);
-	MPI_Cart_shift(cartcomm, 0, 1, &nbrleft, &nbrright);
+	MPI_Cart_coords(cartcomm, myid, 2, coords);	
+
+	//x
+        MPI_Cart_shift(cartcomm, 1, 1, &nbrleft, &nbrright);
+	//y                                
+	MPI_Cart_shift(cartcomm, 0, 1, &nbrdown, &nbrup);
+
+	for (int i=0; i<2; i++){
+		if (coords[i] == -1){
+			coords[i] = MPI_PROC_NULL;
+		}
+	}
+
 	//////////////////////////////////////// q4 ///////////////////////////////////////////////////////////
-	  
-	//maybe swap this out?
-	if( myid == 0 ){
-		nbrleft = MPI_PROC_NULL;
-	}
-	if( myid == nprocs-1 ){
-		nbrright = MPI_PROC_NULL;
-	}
-	//
+	MPE_Decomp1d(nx, dims[1], coords[1], &s_x, &e_x);
+	MPE_Decomp1d(ny, dims[0], coords[0], &s_y, &e_y);
 
-	MPE_Decomp1d(nx, nprocs, myid, &s, &e );
+	printf("(myid: %d) nx=ny: %d; s_x: %d; e_x: %d; s_y: %d; e_y: %d; nbrleft: %d; nbrright: %d; nbrup: %d; nbrdown: %d\n",
+		myid, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown);
 
-	printf("(myid: %d) nx: %d s: %d; e: %d; nbrleft: %d; nbrright: %d\n",myid, nx , s, e,
-		 nbrleft, nbrright);
-
-	init_basic_bv(a, b, f, nx, ny, s, e);
+	init_basic_bv_2d(a, b, f, nx, ny, s_x, e_x, s_y, e_y);
 
 	print_in_order(a, MPI_COMM_WORLD);
 
@@ -115,13 +126,13 @@ int main(int argc, char **argv)
 	glob_diff = 1000;
 	for(it=0; it<maxit; it++){
 
-		exchangi1(a, ny, s, e, MPI_COMM_WORLD, nbrleft, nbrright);
-		sweep1d(a, f, nx, s, e, b);
+		exchangi2(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+		sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
 
-		exchangi1(b, nx, s, e, MPI_COMM_WORLD, nbrleft, nbrright);
-		sweep1d(b, f, nx, s, e, a);
+		exchangi2(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+		sweep2d(b, f, nx, s_x, e_x, s_y, e_y, a);
 
-		ldiff = griddiff(a, b, nx, s, e);
+		ldiff = griddiff_2d(a, b, s_x, e_x, s_y, e_y);
 		MPI_Allreduce(&ldiff, &glob_diff, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 		if(myid==0 && it%10==0){
 			printf("(myid %d) locdiff: %lf; glob_diff: %lf\n",myid, ldiff, glob_diff);
@@ -155,15 +166,15 @@ int main(int argc, char **argv)
 		print_full_grid(a);
 	}
 	
-	// mean squared error calcluation for part 2	
-	analytic_sol_matrix(u, s, e, nx, myid, nprocs);
+	// mean squared error calcluation for part 2 updated to part 4	
+	analytic_sol_matrix_2d(u, nx, ny, coords, dims);
 	double whole_u[maxn][maxn];
-	GatherGrid(whole_u, u, s, e, nx, MPI_COMM_WORLD);
+	GatherGrid2d(whole_u, u, nx, ny, dims, coords, MPI_COMM_WORLD);
 	if (myid == 0){
 		write_grid(whole_u, "./grids/analytic_grid.txt", nx);
 	}
 	//print_in_order(u, MPI_COMM_WORLD);
-	double local_mse = compute_mse(a, u, nx, myid, nprocs);
+	double local_mse = compute_mse_2d(a, u, nx, ny, coords, dims);
 	double global_mse = 0;
 	MPI_Reduce(&local_mse, &global_mse, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	global_mse = global_mse / 3;
@@ -175,7 +186,7 @@ int main(int argc, char **argv)
 		
 	// q3
 	double whole_grid[maxn][maxn];
-	GatherGrid(whole_grid, a, s, e, nx, MPI_COMM_WORLD); 
+	GatherGrid2d(whole_grid, a, nx, ny, dims, coords, MPI_COMM_WORLD);
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (myid == 0){
 		printf("Priting whole grid on rank = 0\n");
@@ -219,7 +230,7 @@ void write_grid(double grid[][maxn], char* file_name, int nx){
 	fclose(fp);
 }
 
-void GatherGrid(double grid[][maxn], double proc_grid[][maxn], int s, int e, int nx, MPI_Comm comm){
+void GatherGrid(double grid[][maxn], double proc_grid[][maxn], int nx, MPI_Comm comm){
 	int myid, size;
 	MPI_Comm_rank(comm, &myid);
 	MPI_Comm_size(comm, &size);
@@ -242,15 +253,52 @@ void GatherGrid(double grid[][maxn], double proc_grid[][maxn], int s, int e, int
 		}	
 
 		// collecting from other procs
+		double temp_grid[maxn][maxn];
 		for (int k=1; k<size; k++){
-			double temp_grid[maxn][maxn];
 			init_full_grid(temp_grid);
 			MPI_Recv(temp_grid, (nx+2)*(nx+2), MPI_DOUBLE, k, 100 + k, comm, &status);
-			int s1;
-			int e1;
 			decomp1d(nx+2, size, k, &s1, &e1);
 			for (int i=s1; i<=e1; i++){
 				for (int j=0; j<nx+2; j++){
+					grid[i][j] = temp_grid[i][j];
+				}
+			}	
+		}
+	}
+}
+
+void GatherGrid2d(double grid[][maxn], double proc_grid[][maxn], int nx, int ny, int* dims, int* coords, MPI_Comm comm){
+	int myid, size;
+	MPI_Comm_rank(comm, &myid);
+	MPI_Comm_size(comm, &size);
+	MPI_Barrier(comm);
+	MPI_Status status;
+	
+	if (myid != 0){	
+		MPI_Send(proc_grid, (nx+2)*(nx+2), MPI_DOUBLE, 0, 100 + myid, comm);
+	}
+
+	if (myid == 0){
+		int s1_x, s1_y, e1_x, e1_y;
+
+		// combinting on proc 0
+		decomp1d(nx+2, dims[1], coords[1], &s1_x, &e1_x);
+		decomp1d(ny+2, dims[0], coords[0], &s1_y, &e1_y);
+		for (int i=s1_x; i<e1_x; i++){
+			for (int j=s1_y; j<e1_y; j++){
+				grid[i][j] = proc_grid[i][j];
+			}
+		}	
+
+		// collecting from other procs
+		double temp_grid[maxn][maxn];
+		for (int k=1; k<size; k++){
+			init_full_grid(temp_grid);
+			MPI_Recv(temp_grid, (nx+2)*(nx+2), MPI_DOUBLE, k, 100 + k, comm, &status);
+			decomp1d(nx+2, dims[1], coords[1], &s1_x, &e1_x);
+			decomp1d(ny+2, dims[0], coords[0], &s1_y, &e1_y);
+			for (int i=s1_x; i<e1_x; i++){
+				for (int j=s1_y; j<e1_y; j++){
 					grid[i][j] = temp_grid[i][j];
 				}
 			}	
@@ -262,27 +310,32 @@ double analytic_sol(double x, double y){
 	return y / ( (1+x)*(1+x) + y*y);
 } 
 
-void analytic_sol_matrix(double u[][maxn], int s, int e, int nx, int id, int size){
-	int s1, e1;
-	decomp1d(nx+2, size, id, &s1, &e1);
-	for (int i=s1; i<e1; i++){
-		for (int j=0; j<nx+2; j++){
-			u[i][j] = analytic_sol((double)i/(double)nx, (double)j/(double)nx);
+void analytic_sol_matrix_2d(double u[][maxn], int nx, int ny, int* coords, int* dims){
+	int s1_x, e1_x;
+	decomp1d(nx+2, dims[1], coords[1], &s1_x, &e1_x);
+	int s1_y, e1_y;
+	decomp1d(ny+2, dims[0], coords[0], &s1_y, &e1_y);
+	
+	for (int i=s1_x; i<e1_x; i++){
+		for (int j=s1_y; j<e1_y; j++){
+			u[i][j] = analytic_sol((double)i/(double)nx, (double)j/(double)ny);
 		}
 	}
 }
 
-double compute_mse(double a[][maxn], double b[][maxn], int nx, int id, int size){
+double compute_mse_2d(double a[][maxn], double b[][maxn], int nx, int ny, int* coords, int* dims){
 	double sum = 0;
-	int s1, e1;
-	decomp1d(nx+2, size, id, &s1, &e1);
+	int s1_x, e1_x;
+	decomp1d(nx+2, dims[1], coords[1], &s1_x, &e1_x);
+	int s1_y, e1_y;
+	decomp1d(ny+2, dims[0], coords[0], &s1_y, &e1_y);
 
-	for (int i=s1; i<e1; i++){
-		for (int j=0; j<nx+2; j++){
+	for (int i=s1_x; i<e1_x; i++){
+		for (int j=s1_y; j<e1_y; j++){
 			sum += (a[i][j] - b[i][j]) * (a[i][j] - b[i][j]);
 		}
 	}
-	return sum / ((double)nx * ((double)e1 - (double)s1 + 1));
+	return sum / (((double)e1_y - (double)s1_y + 1) * ((double)e1_x - (double)s1_x + 1));
 }
 
 
@@ -292,11 +345,6 @@ void init_basic_bv(double a[][maxn], double b[][maxn], double f[][maxn],
 	int i,j;
 	double left, bottom, right, top;
 	double u;
-
-	left = -1.0;  // y/(1 + y*y)
-	bottom = 0; // 0
-	right = 2.0;  // y/(4 + y*y)
-	top = 3.0;    // 1/((1+x)*(1+x) + 1)
 
 	/* set everything to 0 first */
 	for(i=s-1; i<=e+1; i++){
@@ -337,7 +385,45 @@ void init_basic_bv(double a[][maxn], double b[][maxn], double f[][maxn],
 
 }
 
+void init_basic_bv_2d(double a[][maxn], double b[][maxn], double f[][maxn],
+			 int nx, int ny, int s_x, int e_x, int s_y, int e_y)
+{
+	int i,j;
+	double left, bottom, right, top;
+	double u, w;
+
+	/* set everything to 0 first */
+	for(i=s_x-1; i<=e_x+1; i++){
+		for(j=s_y-1; j<=e_y+1; j++){
+			a[i][j] = 0.0;
+			b[i][j] = 0.0;
+			f[i][j] = 0.0;
+		}
+	}
+
+	/* deal with boundaries */
+	for(i=s_x; i<=e_x; i++){
+		a[i][0] = 0; //bottom = 0
+		b[i][0] = 0;
+
+		w = 1 / ( (1 + ((double)i/(double)nx))*(1 + ((double)i/(double)nx)) + 1); // 1/((1+x)*(1+x) + 1)
+		a[i][nx+1] = w;
+		b[i][nx+1] = w;
+	}
+
+	for(j=s_y; j<=e_y; j++){
+		u = ((double)j/(double)nx)/(1 + ((double)j/(double)nx)*((double)j/(double)nx));  // y/(1 + y*y)
+		a[0][j] = u;	
+		b[0][j] = u;
+
+		w = ((double)j/(double)nx)/(4 + ((double)j/(double)nx)*((double)j/(double)nx));  // y/(4 + y*y)
+		a[nx+1][j] = w;
+		b[nx+1][j] = w;
+	}
+}
+
 void init_full_grid(double g[][maxn])
+
 {
 	int i,j;
 	const double junkval = -5;
