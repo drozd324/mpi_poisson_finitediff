@@ -343,6 +343,53 @@ double compute_mse_2d(double a[][maxn], double b[][maxn], int nx, int ny, int* c
 	return sum / (((double)e1_y - (double)s1_y + 1) * ((double)e1_x - (double)s1_x + 1));
 }
 
+
+void init_basic_bv(double a[][maxn], double b[][maxn], double f[][maxn],
+			 int nx, int ny, int s, int e)
+{
+	int i,j;
+	double left, bottom, right, top;
+	double u;
+
+	/* set everything to 0 first */
+	for(i=s-1; i<=e+1; i++){
+		for(j=0; j <= nx+1; j++){
+			a[i][j] = 0.0;
+			b[i][j] = 0.0;
+			f[i][j] = 0.0;
+		}
+	}
+
+	/* deal with boundaries */
+	for(i=s; i<=e; i++){
+		a[i][0] = 0; //bottom = 0
+		b[i][0] = 0;
+		u = 1 / ( (1 + ((double)i/(double)nx))*(1 + ((double)i/(double)nx)) + 1); // 1/((1+x)*(1+x) + 1)
+		a[i][nx+1] = u;
+		b[i][nx+1] = u;
+	}
+
+	/* this is true for proc 0 */
+	if( s == 1 ){
+		for(j=1; j<nx+1; j++){
+			u = ((double)j/(double)nx)/(1 + ((double)j/(double)nx)*((double)j/(double)nx));  // y/(1 + y*y)
+			a[0][j] = u;	
+			b[0][j] = u;
+		}
+	}
+ 
+	/* this is true for proc size-1 */
+	if( e == nx ){
+		for(j=1; j<nx+1; j++){
+			u = ((double)j/(double)nx)/(4 + ((double)j/(double)nx)*((double)j/(double)nx));  // y/(4 + y*y)
+			a[nx+1][j] = u;
+			b[nx+1][j] = u;
+		}
+
+	}
+
+}
+
 void init_basic_bv_2d(double a[][maxn], double b[][maxn], double f[][maxn],
 			 int nx, int ny, int s_x, int e_x, int s_y, int e_y)
 {

@@ -13,6 +13,12 @@ void exchang2(double x[][maxn], int nx, int s, int e, MPI_Comm comm,
 void exchang3(double x[][maxn], int nx, int s, int e, MPI_Comm comm,
 	      int nbrleft, int nbrright);
 
+void exchang3_2d(double x[][maxn], int nx,
+                int s_x, int e_x, int s_y, int e_y ,
+                int nbrleft, int nbrright, int nbrup, int nbrdown,
+		MPI_Comm comm);
+
+
 void exchangi1(double x[][maxn], int nx, int s, int e, MPI_Comm comm,
 	       int nbrleft, int nbrright);
 

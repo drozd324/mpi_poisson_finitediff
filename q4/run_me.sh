@@ -1,3 +1,5 @@
 #!/bin/bash
 
-mpirun -n 9 ./poiss1d 15
+mpirun -np 9 ./poiss2d 15
+#mpirun -np 9 ./poiss2d_isr 15
+#mpirun -np 9 ./poiss2d_sr 15

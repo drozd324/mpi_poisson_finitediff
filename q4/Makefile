@@ -4,14 +4,17 @@ CFLAGS = -g #-Wall -W #-D_CC_OVERLAP
 LDFLAGS = -lm
 POISSOBJS = decomp1d.o jacobi.o
 
-EXECS = poiss1d #poiss1dnb
+EXECS = poiss2d  poiss2d_sr poiss2d_isr
 
 all: $(EXECS)
 
-poiss1d: main.o $(POISSOBJS) 
+poiss2d_isr: main_isr.o $(POISSOBJS) 
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-poiss1dnb: mainnb.o $(POISSOBJS) 
+poiss2d_sr: main_sr.o $(POISSOBJS) 
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+poiss2d: main.o $(POISSOBJS) 
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 tags:
