@@ -126,10 +126,10 @@ int main(int argc, char **argv)
 	glob_diff = 1000;
 	for(it=0; it<maxit; it++){
 
-		exchangi2(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+		exchang3_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
 		sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
 
-		exchangi2(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+		exchang3_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
 		sweep2d(b, f, nx, s_x, e_x, s_y, e_y, a);
 
 		ldiff = griddiff_2d(a, b, s_x, e_x, s_y, e_y);
@@ -381,7 +381,6 @@ void init_basic_bv_2d(double a[][maxn], double b[][maxn], double f[][maxn],
 }
 
 void init_full_grid(double g[][maxn])
-
 {
 	int i,j;
 	const double junkval = -5;
