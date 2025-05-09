@@ -112,40 +112,18 @@ int main(int argc, char **argv){
 	t2=MPI_Wtime();
 	
 	printf("DONE! (it: %d)\n",it);
-
 	if(myid == 0){
 		if( it == maxit ){
 			fprintf(stderr,"Failed to converge\n");
 		}
 		printf("Run took %lf s\n",t2-t1);
 	}
-
 	print_in_order(a, MPI_COMM_WORLD);
 	if( nprocs == 1	){
 		print_grid_to_file("grid", a, nx, ny);
 		print_full_grid(a);
 	}
 
-	
-	// mean squared error calcluation for part 2 updated to part 4	
-	analytic_sol_matrix_2d(u, nx, ny, coords, dims);
-	double whole_u[maxn][maxn];
-	GatherGrid2d(whole_u, u, nx, ny, dims, coords, cartcomm);
-	if (myid == 0){
-		write_grid(whole_u, "./grids/analytic_grid.txt", nx);
-	}
-	//print_in_order(u, MPI_COMM_WORLD);
-	double local_mse = compute_mse_2d(a, u, nx, ny, coords, dims);
-	double global_mse = 0;
-	MPI_Barrier(MPI_COMM_WORLD);
-	MPI_Reduce(&local_mse, &global_mse, 1, MPI_DOUBLE, MPI_SUM, 0, cartcomm);
-	global_mse = global_mse / 3;
-	if (myid == 0){
-		printf("\nMSE compared with analytic solution = %.15lf\n\n", global_mse);
-	}
-
-		
-	// q3
 	double whole_grid[maxn][maxn];
 	GatherGrid2d(whole_grid, a, nx, ny, dims, coords, cartcomm);
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -155,6 +133,15 @@ int main(int argc, char **argv){
 		write_grid(whole_grid, "./grids/grid.txt", nx);
 	}
 
+
+	// analytic solution 
+	analytic_sol_matrix_2d(u, nx, ny, coords, dims);
+	double whole_u[maxn][maxn];
+	GatherGrid2d(whole_u, u, nx, ny, dims, coords, cartcomm);
+	if (myid == 0){
+		write_grid(whole_u, "./grids/analytic_grid.txt", nx);
+	}
+		
 	/* =============================================================
 	 ============================================================= */
 

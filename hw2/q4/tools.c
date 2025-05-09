@@ -95,8 +95,8 @@ void GatherGrid2d(double grid[][maxn], double proc_grid[][maxn], int nx, int ny,
         // combinting on proc 0
         MPE_Decomp1d(nx+2, dims[1], coords[1], &s1_x, &e1_x);
         MPE_Decomp1d(ny+2, dims[0], coords[0], &s1_y, &e1_y);
-        for (int i=s1_x; i<=e1_x; i++){
-            for (int j=s1_y; j<=e1_y; j++){
+        for (int i=s1_x-1; i<=e1_x; i++){
+            for (int j=s1_y-1; j<=e1_y; j++){
                 grid[i][j] = proc_grid[i][j];
             }
         }
@@ -113,8 +113,8 @@ void GatherGrid2d(double grid[][maxn], double proc_grid[][maxn], int nx, int ny,
             MPE_Decomp1d(nx+2, dims[1], k_coords[1], &s1_x, &e1_x);
             MPE_Decomp1d(ny+2, dims[0], k_coords[0], &s1_y, &e1_y);
 
-            for (int i=s1_x; i<=e1_x; i++){
-                for (int j=s1_y; j<=e1_y; j++){
+            for (int i=s1_x-1; i<=e1_x; i++){
+                for (int j=s1_y-1; j<=e1_y; j++){
                     grid[i][j] = temp_grid[i][j];
                 }
             }
@@ -203,8 +203,8 @@ void print_grid_to_file(char *fname, double x[][maxn], int nx, int ny)
         exit(4);
     }
 
-    for(j=ny+1; j>=0; j--){
-        for(i=0; i<nx+2; i++){
+	for(i=0; i<maxn; i++){
+        for(j=0; j<maxn; j++){
             fprintf(fp, "%lf ",x[i][j]);
             }
         fprintf(fp, "\n");
