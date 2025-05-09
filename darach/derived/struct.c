@@ -1,0 +1,23 @@
+#include <stdlib.h>
+#include <stdio.h>
+
+struct {
+  int a;
+  double b;
+  int c;
+} struct_1;
+
+struct {
+  double b;
+  int a;
+  int c;
+} struct_2;
+
+int main(void)
+{
+  printf("sizeof struct_1 (should be 24 bytes?): %ld\n", sizeof(struct_1));
+
+  printf("sizeof struct_2 (should be 16 bytes?): %ld\n", sizeof(struct_2));
+
+  return 0;
+}

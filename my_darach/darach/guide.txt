@@ -1,0 +1,12 @@
+###  run poissons with 
+###  	
+###  	mpirun -n 3 ./poisson 15
+###   
+###  all init a size 15x15 mesh
+###  
+###  cartcreate = 
+###  commsgroup = 
+###  derived = mish mash
+###  p2pnb = basic sendrecv
+###  poisson = 1d serial poisson
+###  ppar1d = poisson parallel 1d

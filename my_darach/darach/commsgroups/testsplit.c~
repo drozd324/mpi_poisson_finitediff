@@ -1,0 +1,130 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
+#include <math.h>
+
+#include "mpi.h"
+
+#define CHUNKSIZE 1000
+#define MYPI      3.14159265358979323846
+#define MAX_ITERS 100000000
+
+#define REQUEST 1
+#define REPLY   2
+
+int main(int argc, char *argv[])
+{
+  int iter;
+  int in, out, i, max, done;
+  double x, y, Pi_approx, error, epsilon;
+  int world_size, myid, server, totalin, totalout, workerid;
+  int rands[CHUNKSIZE];
+  int request;
+  int colour;
+  MPI_Comm world, workers;
+  MPI_Status status;
+  int newcommsize;
+
+  MPI_Init(&argc, &argv);
+  world = MPI_COMM_WORLD;
+  MPI_Comm_rank(world, &myid);
+  MPI_Comm_size(world, &world_size);
+
+  /* server is 'last' rank */
+  server = world_size - 1;
+
+  if( myid == 0 ){
+    if(argc != 2){
+      fprintf(stderr, "Usage: %s <epsilon>\n",argv[0]);
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    sscanf(argv[1], "%lf", &epsilon);
+  }
+  MPI_Bcast(&epsilon, 1, MPI_DOUBLE, 0, world);
+
+  colour = (myid == server);
+  MPI_Comm_split(world, colour, 0, &workers);
+
+  /* server generates random numbers and sends them to workers when
+     requested */
+  if( myid == server ){ /* I am random number server */
+    /* srandom(123456); */
+    /* printf("INT_MAX -1: %d; RAND_MAX-1: %d\n", INT_MAX-1, RAND_MAX-1); */
+    MPI_Comm_size(workers, &newcommsize);
+    printf("Server: colour: %d(newcommisze: %d)\n",colour,newcommsize);
+
+    do {
+
+      MPI_Recv(&request, 1, MPI_INT, MPI_ANY_SOURCE, REQUEST, world, &status);
+
+      if( request ){
+	for(i=0; i < CHUNKSIZE; ){
+	  rands[i] = random();
+	  /* printf("rand[%d]: %d\n",i,rands[i]); */
+	  if(rands[i] <= INT_MAX) i++;
+	}
+	MPI_Send(rands, CHUNKSIZE, MPI_INT, status.MPI_SOURCE, REPLY, world);
+      }
+    }
+    while(request > 0);
+
+  } else { /* not server */
+    MPI_Comm_size(workers, &newcommsize);
+    printf("Not server: colour: %d(newcommsize: %d)\n",colour,newcommsize);
+
+    request = 1;
+    done = in = out = 0;
+    max = INT_MAX; /* used for normalization */
+    MPI_Send(&request, 1, MPI_INT, server, REQUEST, world);
+    MPI_Comm_rank(workers, &workerid);
+    iter = 0;
+    while(!done){
+      iter++;
+      request = 1;
+      MPI_Recv(rands, CHUNKSIZE, MPI_INT, server, REPLY, world, MPI_STATUS_IGNORE);
+
+      for(i=0; i < CHUNKSIZE;  ){
+	x = (( (double) rands[i++])/max)*2  - 1;
+	y = (( (double) rands[i++])/max)*2  - 1;
+	if( x*x + y*y < 1.0 ){
+	  in++;
+	} else {
+	  out++;
+	}
+      }
+      /* reductions happen on 'workers' communicator, not 'world'
+	 communicator */
+      MPI_Allreduce(&in, &totalin, 1, MPI_INT, MPI_SUM, workers);
+      MPI_Allreduce(&out, &totalout, 1, MPI_INT, MPI_SUM, workers);
+      
+      Pi_approx = 4.0 * totalin / (totalin + totalout);
+      error = fabs(Pi_approx - MYPI)/MYPI;
+      done = ( error < epsilon || (totalout + totalin) > MAX_ITERS );
+      request = (done) ? 0 : 1;
+      if( myid == 0 ){
+	printf("\rpi ~= %23.30f (error: %e)", Pi_approx, error);
+	MPI_Send(&request, 1, MPI_INT, server, REQUEST, world);
+      } else {
+	if( request ){
+	  MPI_Send(&request, 1, MPI_INT, server, REQUEST, world);
+	}
+      }
+    }
+    MPI_Comm_free(&workers);
+  }
+
+  if (myid == 0) {
+    printf( "\npoints: %d\nin: %d, out: %d, <ret> to exit\n",
+	    totalin+totalout, totalin, totalout );
+    getchar();
+  }
+
+  MPI_Barrier(world);
+  printf("We're all done\n");
+  
+  MPI_Finalize();
+
+  return 0;
+}
+
+
