@@ -83,12 +83,9 @@ int main(int argc, char **argv){
 
 
 	t1 = MPI_Wtime();
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////
 	glob_diff = 1000;
 	for(it=0; it<maxit; it++){
 
-		//Sendrecv_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
 		Isend_Irecv_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
 		sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
 
@@ -107,8 +104,6 @@ int main(int argc, char **argv){
 			break;
 		}
 	}
-	/////////////////////////////////////////////////////////////////////////////////////////////////
-	
 	t2=MPI_Wtime();
 	
 	printf("DONE! (it: %d)\n",it);
@@ -142,8 +137,6 @@ int main(int argc, char **argv){
 		write_grid(whole_u, "./grids/analytic_grid.txt", nx);
 	}
 		
-	/* =============================================================
-	 ============================================================= */
 
 	MPI_Finalize();
 	return 0;
