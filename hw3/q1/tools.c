@@ -87,6 +87,7 @@ void GatherGrid2d(double grid[][maxn], double proc_grid[][maxn], int nx, int ny,
 
     if (myid != 0){
         MPI_Send(proc_grid, (nx+2)*(nx+2), MPI_DOUBLE, 0, 100 + myid, comm);
+		printf("SENDING PART OF GRID FROM RANK=%d\n", myid);
     }
 
     if (myid == 0){
@@ -158,8 +159,9 @@ double compute_mse_2d(double a[][maxn], double b[][maxn], int nx, int ny, int* c
 /* prints to stdout in GRID view */
 void print_full_grid(double x[][maxn]){
     int i,j;
-    for(j=maxn-1; j>=0; j--){
-        for(i=0; i<maxn; i++){
+    //for(j=maxn-1; j>=0; j--){
+    for(i=0; i<maxn; i++){
+    	for(j=0; j<maxn; j++){
             if(x[i][j] < 10000.0){
 				printf("|%2.6lf| ",x[i][j]);
 			} else {
@@ -181,7 +183,7 @@ void print_in_order(double x[][maxn], MPI_Comm comm){
     sleep(1);
     MPI_Barrier(comm);
 
-    for(i=size-1; i>=0; i--){
+    for(i=0; i<size; i++){
         if( i == myid ){
             printf("proc %d\n",myid);
             print_full_grid(x);
