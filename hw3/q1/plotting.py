@@ -1,17 +1,26 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-grid = np.loadtxt("./grids/grid.txt")
+# Ensure output directory exists
+os.makedirs("./plots", exist_ok=True)
 
-fig1, ax1 = plt.subplots()
-heatmap = ax1.imshow(grid, cmap='coolwarm')
-plt.colorbar(heatmap, label='')
-plt.savefig("./plots/heatmap_plot.png", dpi=300)
+# Plot computed grids
+for i in range(3):
+    grid = np.loadtxt(f"./grids/grid{i}.txt")
+    fig, ax = plt.subplots()
+    heatmap = ax.imshow(grid, cmap='coolwarm')
+    plt.colorbar(heatmap, label='')
+    ax.set_title(f"Heatmap for grid{i}")
+    plt.savefig(f"./plots/heatmap_plot{i}.png", dpi=300)
+    plt.close(fig)
 
-plt.clf()
-# analytic soution
+# Plot analytic solution
 analytic_grid = np.loadtxt("./grids/analytic_grid.txt")
-fig2, ax2 = plt.subplots()
-heatmap = ax2.imshow(analytic_grid, cmap='coolwarm')
+fig, ax = plt.subplots()
+heatmap = ax.imshow(analytic_grid, cmap='coolwarm')
 plt.colorbar(heatmap, label='')
+ax.set_title("Analytic Solution Heatmap")
 plt.savefig("./plots/analytic_heatmap_plot.png", dpi=300)
+plt.close(fig)
+

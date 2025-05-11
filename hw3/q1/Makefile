@@ -1,24 +1,21 @@
-CC = mpicc
+MPICC = mpicc
+CC = $(MPICC)
 
 CFLAGS =
-DEBUG = -g -Wextra -Wall# -fsanitize=address -lefence
+DEBUG = -Wextra -Wall # -fsanitize=address -lefence
 LDFLAGS = -lm
-POISSOBJS = tools.o jacobi.o
 
-EXECS = poiss2d #poiss2d_sr poiss2d_isr
+EXECS = poiss2d 
 
 all: $(EXECS)
 
-#poiss2d_isr: main_isr.o $(POISSOBJS) 
-#	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(DEBUG)
-#
-#poiss2d_sr: main_sr.o $(POISSOBJS) 
-#	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(DEBUG)  
-#
-poiss2d: main.o $(POISSOBJS) 
+poiss2d: main.c tools.o jacobi.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(DEBUG)
 
-.PHONY: clean tags tests
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+.PHONY: clean
 
 clean:
 	rm -rf *.o $(EXECS)

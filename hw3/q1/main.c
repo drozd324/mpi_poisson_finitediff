@@ -21,34 +21,40 @@ int main(int argc, char **argv){
 	double glob_diff;
 	double ldiff;
 	double t1, t2;
-	double tol=1.0E-11;
+	double tol = 1e-11;
 	char name[1024];
 	int namelen;
+
+	// picks out which message passing functions to use
+	int mode = 1;
+	
+	//char save_filename[32];
+	//snprintf(save_filename, sizeof(save_filename), "./grids/grid%d.txt", mode);
+	//printf("Filename: %s\n", save_filename);
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
 	MPI_Get_processor_name(name, &namelen);
-	//printf("(myid %d): running on node: %s\n",myid, name);
+	printf("(myid %d) running on node: %s\n in mode: %d",myid, name, mode);
 
-	if( myid == 0 ){
+	if (myid == 0){
 		/* set the size of the problem */
-		if(argc > 2){
+		if (argc > 2){
 			fprintf(stderr,"---->Usage: mpirun -np <nproc> %s <nx>\n",argv[0]);
 			fprintf(stderr,"---->(for this code nx=ny)\n");
 			MPI_Abort(MPI_COMM_WORLD, 1);
 		}
-		if(argc == 2){
+		if (argc == 2){
 			nx = atoi(argv[1]);
 		}
 
-		if(nx > maxn-2){
+		if (nx > maxn-2){
 			fprintf(stderr,"grid size too large\n");
 			exit(1);
 		}
 	}
-	
 	
 	MPI_Bcast(&nx, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	printf("(myid: %d) nx = %d\n",myid,nx);
@@ -69,7 +75,7 @@ int main(int argc, char **argv){
 	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, reorder, &cartcomm);
 	MPI_Cart_coords(cartcomm, myid, 2, coords);	
 
-	MPI_Cart_shift(cartcomm, 0, -1, &nbrdown, &nbrup);
+	MPI_Cart_shift(cartcomm, 0, 1, &nbrdown, &nbrup);
 	MPI_Cart_shift(cartcomm, 1, 1, &nbrleft, &nbrright);
 
 	MPE_Decomp1d(nx, dims[0], coords[0], &s_x, &e_x);
@@ -79,51 +85,88 @@ int main(int argc, char **argv){
 		myid, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown);
 
 	init_basic_bv_2d(a, b, f, nx, ny, s_x, e_x, s_y, e_y);
-	//print_in_order(a, MPI_COMM_WORLD);
-
 
 	t1 = MPI_Wtime();
 	glob_diff = 1000;
-	for(it=0; it<maxit; it++){
-
-		//Isend_Irecv_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
- 		//PutGet_winfence_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
- 		PutGet_activeSync_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
-		sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
-
 	
-		//Isend_Irecv_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
-		//PutGet_winfence_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
-		PutGet_activeSync_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
-		sweep2d(b, f, nx, s_x, e_x, s_y, e_y, a);
+	switch (mode) {
+		case 0:
+			for (it=0; it<maxit; it++){
+				Isend_Irecv_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+				sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
+			
+				Isend_Irecv_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+				sweep2d(b, f, nx, s_x, e_x, s_y, e_y, a);
 
-		ldiff = griddiff_2d(a, b, s_x, e_x, s_y, e_y);
-		MPI_Allreduce(&ldiff, &glob_diff, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-		if(myid==0 && it%10==0){
-			printf("(myid %d) locdiff: %lf; glob_diff: %lf\n",myid, ldiff, glob_diff);
-		}
-		if(glob_diff < tol ){
-			if(myid==0){
-		printf("iterative solve converged\n");
+				ldiff = griddiff_2d(a, b, s_x, e_x, s_y, e_y);
+				MPI_Allreduce(&ldiff, &glob_diff, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+				if(myid==0 && it%10==0){
+					printf("(myid %d) locdiff: %lf; glob_diff: %lf\n",myid, ldiff, glob_diff);
+				}
+				if(glob_diff < tol ){
+					if(myid==0){
+						printf("iterative solve converged\n");
+					}
+					break;
+				}
 			}
 			break;
-		}
-		/* =====================================================================
-		 ===================================================================== */
+		case 1:
+			for (it=0; it<maxit; it++){
+				PutGet_winfence_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+				sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
+			
+				PutGet_winfence_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+				sweep2d(b, f, nx, s_x, e_x, s_y, e_y, a);
+
+				//if (check_covergence(a, b, s_x, e_x, s_y, e_y, ldiff, glob_diff, tol, it)) break;
+				ldiff = griddiff_2d(a, b, s_x, e_x, s_y, e_y);
+				MPI_Allreduce(&ldiff, &glob_diff, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+				if(myid==0 && it%10==0){
+					printf("(myid %d) locdiff: %lf; glob_diff: %lf\n",myid, ldiff, glob_diff);
+				}
+				if(glob_diff < tol ){
+					if(myid==0){
+						printf("iterative solve converged\n");
+					}
+					break;
+				}
+			}
+			break;
+		case 2:
+			for (it=0; it<maxit; it++){
+				PutGet_activeSync_2d(a, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+				sweep2d(a, f, nx, s_x, e_x, s_y, e_y, b);
+			
+				PutGet_activeSync_2d(b, nx, s_x, e_x, s_y, e_y, nbrleft, nbrright, nbrup, nbrdown, MPI_COMM_WORLD);
+				sweep2d(b, f, nx, s_x, e_x, s_y, e_y, a);
+
+				ldiff = griddiff_2d(a, b, s_x, e_x, s_y, e_y);
+				MPI_Allreduce(&ldiff, &glob_diff, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+				if(myid==0 && it%10==0){
+					printf("(myid %d) locdiff: %lf; glob_diff: %lf\n",myid, ldiff, glob_diff);
+				}
+				if(glob_diff < tol ){
+					if(myid==0){
+						printf("iterative solve converged\n");
+					}
+					break;
+				}
+			}
+			break;
 	}
 
 	t2=MPI_Wtime();
-
     printf("DONE! (it: %d)\n",it);
-    if(myid == 0){
-        if( it == maxit ){
+    if (myid == 0){
+        if (it == maxit){
             fprintf(stderr,"Failed to converge\n");
         }
         printf("Run took %lf s\n",t2-t1);
     }
     print_in_order(a, MPI_COMM_WORLD);
-    if( nprocs == 1 ){
-        print_grid_to_file("grid", a, nx, ny);
+    if (nprocs == 1){
+        write_grid(a, "grid", nx);
         print_full_grid(a);
     }
 
@@ -131,18 +174,23 @@ int main(int argc, char **argv){
     GatherGrid2d(whole_grid, a, nx, ny, dims, coords, cartcomm);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid == 0){
-        printf("Priting whole grid on rank = 0\n");
+        printf("\nPriting whole grid on rank = 0\n");
         print_full_grid(whole_grid);
-        write_grid(whole_grid, "./grids/grid.txt", nx);
+
+		char save_filename[32];
+		snprintf(save_filename, sizeof(save_filename), "./grids/grid%d.txt", mode);
+        write_grid(whole_grid, save_filename, nx);
     }
 
-
     // analytic solution
-    analytic_sol_matrix_2d(u, nx, ny, coords, dims);
-    double whole_u[maxn][maxn];
-    GatherGrid2d(whole_u, u, nx, ny, dims, coords, cartcomm);
     if (myid == 0){
-        write_grid(whole_u, "./grids/analytic_grid.txt", nx);
+    	analytic_sol_matrix_2d(u, nx, ny);
+        write_grid(u, "./grids/analytic_grid.txt", nx);
+        printf("\nPriting analytic solution on rank = 0\n");
+        print_full_grid(u);
+
+		double max_abs_diff = max_diff(whole_grid, u, nx, ny, coords, dims);
+		printf("MAX DIFF: %lf\n", max_abs_diff);
     }
 
 

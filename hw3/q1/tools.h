@@ -27,6 +27,9 @@ void GatherGrid(double grid[][maxn], double proc_grid[][maxn], int nx, MPI_Comm 
 void decomp1d(int n, int p, int myid, int* s, int* e);
 
 void GatherGrid2d(double grid[][maxn], double proc_grid[][maxn], int nx, int ny, int* dims, int* coords, MPI_Comm comm);
-void analytic_sol_matrix_2d(double u[][maxn], int nx, int ny, int* coords, int* dims);
+void analytic_sol_matrix_2d(double u[][maxn], int nx, int ny);
 double compute_mse_2d(double a[][maxn], double b[][maxn], int nx, int ny, int* coords, int* dims);
 
+int check_covergence(double a[][maxn], double b[][maxn], int s_x, int e_x, int s_y, int e_y, double* ldiff, double* glob_diff, int tol, int it);
+double griddiff_2d(double a[][maxn], double b[][maxn], int s_x, int e_x, int s_y, int e_y);
+double max_diff(double a[][maxn], double b[][maxn], int nx, int ny, int* coords, int* dims);
