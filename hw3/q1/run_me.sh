@@ -9,10 +9,9 @@ NUM_PROCS=4
 for ((i=0; i<3; i++)) do
     # Replace second-last character in line 29 with $i
 	sed -i "29s/^\(.*\)\(.\)\(.\)$/\1${i}\3/" main.c
-	#vim -E -s -u NONE +"<28j$hr${i}>" +wq main.c
 
     make
-    mpirun -n ${NUM_PROCS} ./poiss2d ${SOLVE_SIZE}
+    mpirun -n ${NUM_PROCS} ./poiss2d ${SOLVE_SIZE} > /dev/null 2>&1
 done
 
 make clean

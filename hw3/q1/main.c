@@ -26,7 +26,7 @@ int main(int argc, char **argv){
 	int namelen;
 
 	// picks out which message passing functions to use
-	int mode = 0;
+	int mode = 2;
 	
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myid);

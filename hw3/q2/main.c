@@ -23,13 +23,10 @@ int main(int argc, char* argv[]){
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	if (rank == root)
-		printf("ROOT=%d\n\n", root);
 	if (size != 4){
 		printf("THIS CASE SHOULD BE RAN WITH 4 PROCESSES\n");
 		MPI_Abort(MPI_COMM_WORLD, 3);	
 	}
-
 
 	//==================== reading ========================
 
@@ -53,19 +50,6 @@ int main(int argc, char* argv[]){
 	MPI_File_set_view(fh_mat, sizeof(int) + rank*(n*N)*sizeof(double), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
 	MPI_File_read_all(fh_mat, sub_mat, n*N, MPI_DOUBLE, MPI_STATUS_IGNORE);
 	
-	if (rank == root){
-		for (int k=0; k<size; k++){	
-			for (int i=0; i<n; i++){	
-				for (int j=0; j<n; j++){	
-					printf("%lf ", sub_mat[k*n*n + i*n + j]);
-				}
-				printf("\n");
-			}
-			printf("\n");
-		}	
-	}
-	
-
 	MPI_File_close(&fh_mat);
 
 	//==================== reading vector ========================
@@ -73,15 +57,6 @@ int main(int argc, char* argv[]){
 	MPI_File_set_view(fh_vec, sizeof(int) + rank*n*sizeof(double), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
 	MPI_File_read_all(fh_vec, sub_vec, n, MPI_DOUBLE, MPI_STATUS_IGNORE);
 	
-	if (rank == root){
-		for (int i=0; i<n; i++){	
-			printf("%lf ", sub_vec[i]);
-		}
-		printf("\n");
-		printf("\n");
-	}
-	
-
 	MPI_File_close(&fh_vec);
 
 	//==================== distributed matrix vector product ========================
@@ -92,11 +67,12 @@ int main(int argc, char* argv[]){
 	mat_vect_prod(sub_mat, sub_vec, b, N, n);
 	MPI_Reduce(b, b_end, N, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 
+	
 	if (rank == root){
+		printf("Solution vector: \n");
 		for (int i=0; i<N; i++){
-			printf("%lf ", b_end[i]); 
+			printf("%.1lf ", b_end[i]); 
 		}
-		printf("\n"); 
 		printf("\n"); 
 	}
 

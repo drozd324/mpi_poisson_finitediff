@@ -15,8 +15,8 @@ with open("mat-d20-b5-p4.bin", "rb") as f:
 mat = np.reshape(mat, (4, 20, 5))
 mat = np.block(list(mat))
 
-print(mat)
-print(vec)
+#print(mat)
+#print(vec)
 
-
+print("Solution vector:")
 print(mat @ vec)
