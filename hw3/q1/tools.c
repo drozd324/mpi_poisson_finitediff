@@ -242,8 +242,8 @@ void write_grid(double grid[][maxn], char* file_name, int nx){
         printf("Error opening file!\n");
     }
 
-    for (int i=0; i<nx+2; i++){
-        for (int j=0; j<nx+2; j++){
+	for (int j=nx+2-1; j>=0; j--){
+		for (int i=0; i<nx+2; i++){
             fprintf(fp, "%lf ", grid[i][j]);
         }
         fprintf(fp, "\n");

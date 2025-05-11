@@ -26,12 +26,8 @@ int main(int argc, char **argv){
 	int namelen;
 
 	// picks out which message passing functions to use
-	int mode = 1;
+	int mode = 0;
 	
-	//char save_filename[32];
-	//snprintf(save_filename, sizeof(save_filename), "./grids/grid%d.txt", mode);
-	//printf("Filename: %s\n", save_filename);
-
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 	MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
