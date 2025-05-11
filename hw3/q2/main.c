@@ -13,10 +13,9 @@ void mat_vect_prod(double* A, double* x, double* b, int n, int m){
 	}
 }
 
-
 int main(int argc, char* argv[]){
 	int rank, size;
-	int root = 2;
+	int root = 1;
 	char mat_fname[100] = "mat-d20-b5-p4.bin";
 	char vec_fname[100] = "x-d20.txt.bin";
 
@@ -32,30 +31,33 @@ int main(int argc, char* argv[]){
 	}
 
 
-	//==================== reading matrix ========================
-	MPI_File fh_mat;
+	//==================== reading ========================
+
+	MPI_File fh_mat, fh_vec;
 	int N;
-	int n = 5;
+	int vec_len;
+
 
 	MPI_File_open(MPI_COMM_WORLD, mat_fname, MPI_MODE_RDWR, MPI_INFO_NULL, &fh_mat);
 	MPI_File_read(fh_mat, &N, 1, MPI_INT, MPI_STATUS_IGNORE);
+	MPI_File_open(MPI_COMM_WORLD, vec_fname, MPI_MODE_RDWR, MPI_INFO_NULL, &fh_vec);
+	MPI_File_read(fh_vec, &vec_len, 1, MPI_INT, MPI_STATUS_IGNORE);
 	
-	double* blocks = malloc(size*n*n * sizeof(double));
+	int n = vec_len/size;
+	double* sub_mat = malloc(n*N * sizeof(double));
+	double* sub_vec = malloc(n * sizeof(double));
 
-	MPI_Datatype filetype_mat;
-	MPI_Type_vector(size*n*n, size*n*n, 0, MPI_DOUBLE, &filetype_mat);	
-	MPI_Type_commit(&filetype_mat);
+	//==================== reading matrix ========================
 
-	printf("rank=%d, offset=%d\n", rank, rank*(size*n*n)*sizeof(double));
 	
-	MPI_File_set_view(fh_mat, sizeof(int) + rank*(size*n*n)*sizeof(double), MPI_DOUBLE, filetype_mat, "native", MPI_INFO_NULL);
-	MPI_File_read_all(fh_mat, blocks, size*n*n, MPI_DOUBLE, MPI_STATUS_IGNORE);
+	MPI_File_set_view(fh_mat, sizeof(int) + rank*(n*N)*sizeof(double), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
+	MPI_File_read_all(fh_mat, sub_mat, n*N, MPI_DOUBLE, MPI_STATUS_IGNORE);
 	
 	if (rank == root){
 		for (int k=0; k<size; k++){	
 			for (int i=0; i<n; i++){	
 				for (int j=0; j<n; j++){	
-					printf("%lf ", blocks[k*n*n + i*n + j]);
+					printf("%lf ", sub_mat[k*n*n + i*n + j]);
 				}
 				printf("\n");
 			}
@@ -65,24 +67,11 @@ int main(int argc, char* argv[]){
 	
 
 	MPI_File_close(&fh_mat);
-	MPI_Type_free(&filetype_mat);
 
 	//==================== reading vector ========================
-	MPI_File fh_vec;
-	int vec_len;
 
-	MPI_File_open(MPI_COMM_WORLD, vec_fname, MPI_MODE_RDWR, MPI_INFO_NULL, &fh_vec);
-	MPI_File_read(fh_vec, &vec_len, 1, MPI_INT, MPI_STATUS_IGNORE);
-	
-	int sub_vec_len = vec_len/size;
-	double* sub_vec = malloc(sub_vec_len * sizeof(double));
-
-	MPI_Datatype filetype_vec;
-	MPI_Type_vector(sub_vec_len, sub_vec_len, 0, MPI_DOUBLE, &filetype_vec);	
-	MPI_Type_commit(&filetype_vec);
-
-	MPI_File_set_view(fh_vec, rank*sub_vec_len*sizeof(double), MPI_DOUBLE, filetype_vec, "native", MPI_INFO_NULL);
-	MPI_File_read_all(fh_vec, sub_vec, sub_vec_len, MPI_DOUBLE, MPI_STATUS_IGNORE);
+	MPI_File_set_view(fh_vec, sizeof(int) + rank*n*sizeof(double), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
+	MPI_File_read_all(fh_vec, sub_vec, n, MPI_DOUBLE, MPI_STATUS_IGNORE);
 	
 	if (rank == root){
 		for (int i=0; i<n; i++){	
@@ -94,14 +83,13 @@ int main(int argc, char* argv[]){
 	
 
 	MPI_File_close(&fh_vec);
-	MPI_Type_free(&filetype_vec);
 
 	//==================== distributed matrix vector product ========================
 	
 	double* b = calloc(N, sizeof(double));
 	double* b_end = calloc(N, sizeof(double));
 
-	mat_vect_prod(blocks, sub_vec, b, N, sub_vec_len);
+	mat_vect_prod(sub_mat, sub_vec, b, N, n);
 	MPI_Reduce(b, b_end, N, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 
 	if (rank == root){
@@ -116,7 +104,7 @@ int main(int argc, char* argv[]){
 	free(b);
 	free(b_end);
 	free(sub_vec);
-	free(blocks);
+	free(sub_mat);
 	MPI_Finalize();
 	return 0;
 }

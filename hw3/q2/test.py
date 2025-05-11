@@ -12,6 +12,11 @@ with open("mat-d20-b5-p4.bin", "rb") as f:
     mat = np.fromfile(f, dtype=np.float64, count=len_mat*len_mat)
 
 #vec = np.reshape(vec, (len_mat, 1))
-mat = np.reshape(mat, (len_mat, len_mat))
+mat = np.reshape(mat, (4, 20, 5))
+mat = np.block(list(mat))
+
+print(mat)
+print(vec)
+
 
 print(mat @ vec)
